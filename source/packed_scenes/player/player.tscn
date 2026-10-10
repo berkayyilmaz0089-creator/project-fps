@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://k0joiamexb4t"]
+
+[ext_resource type="Script" uid="uid://bxf5fbgc3sq3i" path="res://source/game/player/PlayerMovement.cs" id="1_k11p3"]
+[ext_resource type="Script" uid="uid://ctvob64bh3arc" path="res://source/game/player/PlayerLook.cs" id="2_aio3c"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_aio3c"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_aio3c"]
+radius = 0.3
+
+[node name="Player" type="CharacterBody3D" unique_id=495786944 node_paths=PackedStringArray("BodyCollider", "HeadNode", "CeilingCheck")]
+collision_layer = 2
+collision_mask = 4
+platform_floor_layers = 4294901764
+platform_wall_layers = 4
+script = ExtResource("1_k11p3")
+BodyCollider = NodePath("CollisionShape3D")
+HeadNode = NodePath("Head")
+CeilingCheck = NodePath("ShapeCast3D")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=678737525]
+shape = SubResource("CapsuleShape3D_aio3c")
+
+[node name="Head" type="Node3D" parent="." unique_id=1456192568]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+script = ExtResource("2_aio3c")
+
+[node name="Camera3D" type="Camera3D" parent="Head" unique_id=92789610]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.2)
+current = true
+fov = 90.0
+near = 0.01
+far = 250.0
+
+[node name="ShapeCast3D" type="ShapeCast3D" parent="." unique_id=1860106142]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+shape = SubResource("SphereShape3D_aio3c")
+target_position = Vector3(0, 0.65, 0)
+collision_mask = 4
