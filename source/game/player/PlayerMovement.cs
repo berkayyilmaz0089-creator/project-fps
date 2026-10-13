@@ -1,6 +1,7 @@
 using Godot;
+using Godot.Collections;
 
-public partial class PlayerMovement : CharacterBody3D
+public partial class PlayerMovement : CharacterBody3D, ISaveable
 {
     [Signal] public delegate void StaminaChangedEventHandler(float current, float max);
 
@@ -8,13 +9,15 @@ public partial class PlayerMovement : CharacterBody3D
     [Export] public float WalkSpeed = 4.0f;
     [Export] public float SprintSpeed = 7.0f;
     [Export] public float CrouchSpeed = 2.0f;
-    [Export] public float JumpForce = 3.0f;
+    [Export] public float JumpForce = 5.0f;
 
     [ExportGroup("Physics Settings")]
-    [Export] public float Gravity = 9.81f;
+    [Export] public float Gravity = 19.62f;
     [Export] public float Acceleration = 10.0f;
     [Export] public float Deceleration = 12.0f;
-    [Export] public float AirControl = 3.0f;
+    [Export] public float AirControl = 2.0f;
+    [Export] public float CoyoteTime = 0.15f;
+    [Export] public float JumpBufferTime = 0.15f;
 
     [ExportGroup("Crouch Settings")]
     [Export] public float NormalHeight = 1.8f;
@@ -23,7 +26,6 @@ public partial class PlayerMovement : CharacterBody3D
 
     [ExportGroup("Stamina Settings")]
     [Export] public float MaxStamina = 5.0f;
-    [Export] public float CurrentStamina = 5.0f;
     [Export] public float DrainRate = 1.0f;
     [Export] public float RegenRate = 1.0f;
 
@@ -32,13 +34,18 @@ public partial class PlayerMovement : CharacterBody3D
     [Export] public Node3D HeadNode;
     [Export] public ShapeCast3D CeilingCheck;
 
+    private float CurrentStamina;
     private bool isExhausted = false;
     private bool isCrouching = false;
     private float originalCapsuleHeight;
     private float originalHeadY;
 
+    private float coyoteTimer = 0.0f;
+    private float jumpBufferTimer = 0.0f;
+
     public override void _Ready()
     {
+        CurrentStamina = MaxStamina;
         FloorSnapLength = 0.2f;
         FloorMaxAngle = Mathf.DegToRad(45.0f);
 
@@ -65,12 +72,34 @@ public partial class PlayerMovement : CharacterBody3D
         bool sprintHeld = Input.IsActionPressed("sprint");
         bool crouchHeld = Input.IsActionPressed("crouch");
 
+        UpdateJumpTimers(deltaTime);
         ApplyGravity(deltaTime);
         HandleMovement(inputDirection, sprintHeld, deltaTime);
         HandleJump();
         HandleCrouch(crouchHeld, deltaTime);
         HandleStamina(sprintHeld, inputDirection, deltaTime);
         MoveAndSlide();
+    }
+
+    private void UpdateJumpTimers(float deltaTime)
+    {
+        if (IsOnFloor())
+        {
+            coyoteTimer = CoyoteTime;
+        }
+        else
+        {
+            coyoteTimer -= deltaTime;
+        }
+
+        if (Input.IsActionJustPressed("jump"))
+        {
+            jumpBufferTimer = JumpBufferTime;
+        }
+        else
+        {
+            jumpBufferTimer -= deltaTime;
+        }
     }
 
     private void ApplyGravity(float deltaTime)
@@ -113,11 +142,14 @@ public partial class PlayerMovement : CharacterBody3D
 
     private void HandleJump()
     {
-        if (Input.IsActionJustPressed("jump") && IsOnFloor() && !isCrouching)
+        if (jumpBufferTimer > 0.0f && coyoteTimer > 0.0f && !isCrouching)
         {
             Vector3 velocity = Velocity;
             velocity.Y = JumpForce;
             Velocity = velocity;
+
+            jumpBufferTimer = 0.0f;
+            coyoteTimer = 0.0f;
         }
     }
 
@@ -190,6 +222,63 @@ public partial class PlayerMovement : CharacterBody3D
 
                 EmitSignal(SignalName.StaminaChanged, CurrentStamina, MaxStamina);
             }
+        }
+    }
+
+    public string GetSaveId()
+    {
+        return "PlayerMovement_ID";
+    }
+
+    public Dictionary CaptureState()
+    {
+        return new Dictionary
+        {
+            ["pos_x"] = GlobalPosition.X,
+            ["pos_y"] = GlobalPosition.Y,
+            ["pos_z"] = GlobalPosition.Z,
+            ["vel_x"] = Velocity.X,
+            ["vel_y"] = Velocity.Y,
+            ["vel_z"] = Velocity.Z,
+            ["current_stamina"] = CurrentStamina,
+            ["is_exhausted"] = isExhausted,
+            ["is_crouching"] = isCrouching
+        };
+    }
+
+    public void RestoreState(Dictionary state)
+    {
+        if (state.ContainsKey("pos_x") && state.ContainsKey("pos_y") && state.ContainsKey("pos_z"))
+        {
+            GlobalPosition = new Vector3(
+                state["pos_x"].AsSingle(),
+                state["pos_y"].AsSingle(),
+                state["pos_z"].AsSingle()
+            );
+        }
+
+        if (state.ContainsKey("vel_x") && state.ContainsKey("vel_y") && state.ContainsKey("vel_z"))
+        {
+            Velocity = new Vector3(
+                state["vel_x"].AsSingle(),
+                state["vel_y"].AsSingle(),
+                state["vel_z"].AsSingle()
+            );
+        }
+
+        if (state.ContainsKey("current_stamina"))
+        {
+            CurrentStamina = state["current_stamina"].AsSingle();
+        }
+
+        if (state.ContainsKey("is_exhausted"))
+        {
+            isExhausted = state["is_exhausted"].AsBool();
+        }
+
+        if (state.ContainsKey("is_crouching"))
+        {
+            isCrouching = state["is_crouching"].AsBool();
         }
     }
 }

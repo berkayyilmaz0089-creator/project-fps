@@ -49,13 +49,13 @@ _surfaces = [{
 "vertex_data": PackedByteArray("zczMvQAAYMAAAODAzczMvWhm5r4AAFBAzczMvQAAYMAAAFBAzczMvQAAYMAAAODAzczMvQAAYMAAAFBAzczMPQAAYMAAAODAzczMvQAAYMAAAODAzczMPQAAYMAAAODAzczMvQAAYEAAAODAzczMvQAAYMAAAOBAzczMvQAAYMAAAJhAzczMvWhm5r4AAJhAzczMvQAAYEAAAOBAzczMvQAAYMAAAOBAzczMPQAAYMAAAJhAzczMvQAAYMAAAJhAzczMvQAAYEAAAODAzczMvQAAYEAAAODAzczMPQAAYEAAAODAzczMvQAAYEAAAOBAzczMvQAAYMAAAOBAzczMvQAAYEAAAOBAzczMPQAAYEAAAOBAzczMPQAAYMAAAFBAzczMPQAAYMAAAODAzczMPQAAYMAAAFBAzczMPQAAYEAAAODAzczMPWhm5r4AAFBAzczMPQAAYMAAAOBAzczMPQAAYMAAAOBAzczMPQAAYMAAAOBAzczMPWhm5r4AAJhAzczMPQAAYMAAAJhAzczMPQAAYEAAAOBAzczMPQAAYEAAAODAzczMPQAAYEAAAOBAzczMvQAAYMAAAFBAzczMvWhm5r4AAFBAzczMPQAAYMAAAFBAzczMvQAAYMAAAJhAzczMPWhm5r4AAJhAzczMvWhm5r4AAJhAzczMvWhm5r4AAJhAzczMPWhm5r4AAFBAzczMvWhm5r4AAFBAzczMPQAAYMAAAJhAzczMPWhm5r4AAFBAzczMPWhm5r4AAJhAAAAAgP9//78AAACA/3//vwAAAID/f/+/AIAAAP///78AgAAA////vwCAAAD///+//////wAA/7//////AAD/v/////8AAP+/AAAAgP9//78AAACA/3//vwAAAID/f/+/AAAAgP9//78AgAAA////vwCAAAD///+/AIAAAP///78AAACA/3//vwCA//8AAP+/AID//wAA/78AgP//AAD/v/9//3////+//3//f////7//f/9/////vwCAAAD///+///8AgP///////wCA////////AID///////8AgP////8AgAAA////v/9//3////+///8AgP///v///wCA///+////AID///////8AgP///v//////AAD/vwCA//8AAP+//3//fwAA/z//f/9/AAD/P/9//38AAP8//////////z//////////P/////////8/AIAAAAAA/z8AgAAAAAD/PwCAAAAAAP8//////////z//f/9/AAD/PwCAAAAAAP8/")
 }]
 
-[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_1w5ww"]
-points = PackedVector3Array(1.25, 1.25, 0.75, 1.25, 1.25, -0.75, -1.25, 1.25, 0.75, 1.25, -1.25, 0.75, 1.25, -1.25, -0.75, -1.25, 1.25, -0.75, -1.25, -1.25, 0.75, -1.25, -1.25, -0.75)
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_k6hus"]
+points = PackedVector3Array(1.5, 1.25, 0.75, 1.5, 1.25, -0.75, -1.5, 1.25, 0.75, 1.5, -1.25, 0.75, 1.5, -1.25, -0.75, -1.5, 1.25, -0.75, -1.5, -1.25, 0.75, -1.5, -1.25, -0.75)
 
 [sub_resource type="BoxMesh" id="BoxMesh_pyv7s"]
-lightmap_size_hint = Vector2i(24, 43)
+lightmap_size_hint = Vector2i(26, 46)
 add_uv2 = true
-size = Vector3(2.5, 2.5, 1.5)
+size = Vector3(3, 2.5, 1.5)
 
 [sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_o1jx1"]
 points = PackedVector3Array(-0.75, -1.25, -0.75, -0.75, -1.25, 0.75, -0.75, 1.25, -0.75, 0.75, -1.25, -0.75, 0.75, -1.25, 0.75, -0.75, 1.25, 0.75, 0.75, 1.25, -0.75, 0.75, 1.25, 0.75)
@@ -64,6 +64,9 @@ points = PackedVector3Array(-0.75, -1.25, -0.75, -0.75, -1.25, 0.75, -0.75, 1.25
 lightmap_size_hint = Vector2i(19, 38)
 add_uv2 = true
 size = Vector3(1.5, 2.5, 1.5)
+
+[sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_786qr"]
+points = PackedVector3Array(1.5, 1.25, 0.75, 1.5, 1.25, -0.75, -1.5, 1.25, 0.75, 1.5, -1.25, 0.75, 1.5, -1.25, -0.75, -1.5, 1.25, -0.75, -1.5, -1.25, 0.75, -1.5, -1.25, -0.75)
 
 [sub_resource type="ConvexPolygonShape3D" id="ConvexPolygonShape3D_xht8u"]
 points = PackedVector3Array(-0.5, -0.1, -0.5, -0.5, 0.1, -0.5, 0.5, -0.1, -0.5, -0.5, -0.1, 0.5, -0.5, 0.1, 0.5, 0.5, 0.1, -0.5, 0.5, -0.1, 0.5, 0.5, 0.1, 0.5)
@@ -186,20 +189,20 @@ shape = SubResource("ConcavePolygonShape3D_61nlu")
 material_override = ExtResource("3_k6hus")
 mesh = SubResource("ArrayMesh_pi2od")
 
-[node name="StaticBody3D6" type="StaticBody3D" parent="." unique_id=473414503]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1.35, -5)
+[node name="StaticBody3D8" type="StaticBody3D" parent="." unique_id=1824746651]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.25, 1.35, -5)
 collision_layer = 4
 collision_mask = 2
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D6" unique_id=894747876]
-shape = SubResource("ConvexPolygonShape3D_1w5ww")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D8" unique_id=1756549134]
+shape = SubResource("ConvexPolygonShape3D_k6hus")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D6/CollisionShape3D" unique_id=909600463]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D8/CollisionShape3D" unique_id=909600463]
 material_override = ExtResource("4_786qr")
 mesh = SubResource("BoxMesh_pyv7s")
 
 [node name="StaticBody3D7" type="StaticBody3D" parent="." unique_id=33792938]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.65, 1.35, -5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 1.35, -5)
 collision_layer = 4
 collision_mask = 2
 
@@ -210,20 +213,20 @@ shape = SubResource("ConvexPolygonShape3D_o1jx1")
 material_override = ExtResource("4_786qr")
 mesh = SubResource("BoxMesh_71lxq")
 
-[node name="StaticBody3D8" type="StaticBody3D" parent="." unique_id=850002369]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 5, 1.35, -4.5)
+[node name="StaticBody3D6" type="StaticBody3D" parent="." unique_id=599470792]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 5, 1.35, -4.25)
 collision_layer = 4
 collision_mask = 2
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D8" unique_id=1222784503]
-shape = SubResource("ConvexPolygonShape3D_1w5ww")
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D6" unique_id=448290981]
+shape = SubResource("ConvexPolygonShape3D_786qr")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="StaticBody3D8/CollisionShape3D" unique_id=1414303043]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="StaticBody3D6/CollisionShape3D" unique_id=1414303043]
 material_override = ExtResource("4_786qr")
 mesh = SubResource("BoxMesh_pyv7s")
 
 [node name="StaticBody3D9" type="StaticBody3D" parent="." unique_id=425534810]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 2.9, -1.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 2.9, -1)
 collision_layer = 4
 collision_mask = 2
 
@@ -235,7 +238,7 @@ material_override = ExtResource("4_786qr")
 mesh = SubResource("BoxMesh_gswo5")
 
 [node name="StaticBody3D10" type="StaticBody3D" parent="." unique_id=1317132041]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.3, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.3, 1.25)
 collision_layer = 4
 collision_mask = 2
 

@@ -17,14 +17,28 @@ boot_splash/show_image=false
 boot_splash/use_filter=false
 config/icon="res://icon.svg"
 
+[autoload]
+
+NodeIdGenerator="*uid://dixwncd3gqr47"
+SaveAnimations="*uid://ckwkryqvqq6fv"
+SaveDirectoryHandler="*uid://d4if61d8k85yb"
+SaveManager="*uid://dlvjxklrc4tb3"
+
 [display]
 
 window/size/mode=3
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 window/vsync/vsync_mode=0
 
 [dotnet]
 
 project/assembly_name="Project FPS"
+
+[global_group]
+
+save_icon=""
+loading_ui=""
 
 [input]
 
@@ -83,6 +97,16 @@ look_right={
 "events": [Object(InputEventJoypadMotion,"resource_local_to_scene":false,"resource_name":"","device":-1,"axis":2,"axis_value":1.0,"script":null)
 ]
 }
+quick_save={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194337,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
+}
+quick_load={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":4194340,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
+}
 
 [layer_names]
 
@@ -93,6 +117,7 @@ look_right={
 [physics]
 
 3d/physics_engine="Jolt Physics"
+3d/default_gravity=19.619999999999997
 
 [rendering]
 
