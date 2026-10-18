@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Threading.Tasks;
 
 public partial class SaveManager : Node
@@ -8,9 +9,9 @@ public partial class SaveManager : Node
     [Signal] public delegate void LoadStartedEventHandler();
     [Signal] public delegate void LoadCompletedEventHandler();
 
-    private const string SecretKey = "project_fps_1234"; // NOT A REAL KEY, ONLU FOR TESTING
+    private const string SecretKey = "project_fps_1234"; // NOT A REAL KEY, ONLY FOR TESTING
+    private const int SaveVersion = 1;
 
-    private NodeIDGenerator idGenerator;
     private SaveDirectoryHandler directoryHandler;
     private SaveAnimations saveAnimations;
 
@@ -18,12 +19,9 @@ public partial class SaveManager : Node
 
     public override void _Ready()
     {
-        idGenerator = new NodeIDGenerator();
         directoryHandler = new SaveDirectoryHandler();
         saveAnimations = new SaveAnimations();
 
-        AddChild(idGenerator);
-        AddChild(directoryHandler);
         AddChild(saveAnimations);
 
         directoryHandler.EnsureDirectoryExists();
@@ -92,33 +90,55 @@ public partial class SaveManager : Node
         directoryHandler.ManageSaves();
 
         string filePath = directoryHandler.GetSavePath(saveName);
-        string currentScene = GetTree().CurrentScene != null ? GetTree().CurrentScene.SceneFilePath : string.Empty;
+        string tempPath = directoryHandler.GetTempPath(saveName);
 
-        var nodeStates = new Godot.Collections.Dictionary();
-        var saveableNodes = GetSaveableNodes(GetTree().Root);
-
-        foreach (Node node in saveableNodes)
+        try
         {
-            if (node is ISaveable saveable)
+            var sceneManager = GetNode<SceneManager>("/root/SceneManager");
+            sceneManager.CaptureCurrentScene();
+
+            var masterData = new Godot.Collections.Dictionary
             {
-                string key = idGenerator.GetSaveID(node);
-                nodeStates[key] = saveable.CaptureState();
+                ["version"] = SaveVersion,
+                ["scene_manager"] = sceneManager.SaveData(),
+                ["timestamp"] = Time.GetDatetimeStringFromSystem()
+            };
+
+            string jsonString = Json.Stringify(masterData);
+            if (string.IsNullOrEmpty(jsonString))
+            {
+                throw new Exception("JSON serialization resulted in empty string.");
             }
-        }
 
-        var masterData = new Godot.Collections.Dictionary
-        {
-            ["scene_path"] = currentScene,
-            ["nodes"] = nodeStates,
-            ["timestamp"] = Time.GetDatetimeStringFromSystem()
-        };
+            using var file = FileAccess.OpenEncryptedWithPass(tempPath, FileAccess.ModeFlags.Write, SecretKey);
+            if (file == null)
+            {
+                throw new Exception("Failed to open temporary file for writing encryption.");
+            }
 
-        string jsonString = Json.Stringify(masterData);
-
-        using var file = FileAccess.OpenEncryptedWithPass(filePath, FileAccess.ModeFlags.Write, SecretKey);
-        if (file != null)
-        {
             file.StoreString(jsonString);
+            file.Close();
+
+            if (FileAccess.FileExists(filePath))
+            {
+                DirAccess.RemoveAbsolute(filePath);
+            }
+
+            Error renameError = DirAccess.RenameAbsolute(tempPath, filePath);
+            if (renameError != Error.Ok)
+            {
+                throw new Exception("Failed to rename temporary file to target save path.");
+            }
+
+            GD.Print("Save completed successfully: " + saveName);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr("Save encryption failed: " + e.Message);
+            if (FileAccess.FileExists(tempPath))
+            {
+                DirAccess.RemoveAbsolute(tempPath);
+            }
         }
 
         await ToSignal(GetTree().CreateTimer(0.8f), SceneTreeTimer.SignalName.Timeout);
@@ -138,78 +158,52 @@ public partial class SaveManager : Node
 
         if (!FileAccess.FileExists(filePath))
         {
+            GD.PrintErr("Load failed: File does not exist -> " + fileName);
             FinishLoading();
             return;
         }
 
-        using var file = FileAccess.OpenEncryptedWithPass(filePath, FileAccess.ModeFlags.Read, SecretKey);
-        if (file == null)
+        try
         {
-            FinishLoading();
-            return;
-        }
-
-        string jsonString = file.GetAsText();
-        var json = new Json();
-
-        if (json.Parse(jsonString) != Error.Ok)
-        {
-            FinishLoading();
-            return;
-        }
-
-        var masterData = json.Data.AsGodotDictionary();
-
-        if (masterData.ContainsKey("scene_path"))
-        {
-            string targetScene = masterData["scene_path"].AsString();
-            if (!string.IsNullOrEmpty(targetScene))
+            using var file = FileAccess.OpenEncryptedWithPass(filePath, FileAccess.ModeFlags.Read, SecretKey);
+            if (file == null)
             {
-                GetTree().CallDeferred(SceneTree.MethodName.ChangeSceneToFile, targetScene);
-                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                throw new Exception("Failed to open save file for decryption.");
             }
-        }
 
-        if (masterData.ContainsKey("nodes"))
-        {
-            var nodeStates = masterData["nodes"].AsGodotDictionary();
-            var saveableNodes = GetSaveableNodes(GetTree().Root);
+            string jsonString = file.GetAsText();
+            var json = new Json();
 
-            foreach (Node node in saveableNodes)
+            if (json.Parse(jsonString) != Error.Ok)
             {
-                if (node is ISaveable saveable)
-                {
-                    string key = idGenerator.GetSaveID(node);
+                throw new Exception("JSON parse error during load.");
+            }
 
-                    if (nodeStates.ContainsKey(key))
-                    {
-                        var nodeData = nodeStates[key].AsGodotDictionary();
-                        saveable.RestoreState(nodeData);
-                    }
+            var masterData = json.Data.AsGodotDictionary();
+            var sceneManager = GetNode<SceneManager>("/root/SceneManager");
+
+            if (masterData.ContainsKey("scene_manager"))
+            {
+                var sceneData = masterData["scene_manager"].AsGodotDictionary();
+                sceneManager.LoadData(sceneData);
+
+                string targetScene = sceneData.ContainsKey("current_scene") ? sceneData["current_scene"].AsString() : "";
+                if (!string.IsNullOrEmpty(targetScene))
+                {
+                    await sceneManager.LoadSceneFromSave(targetScene);
                 }
             }
+
+            GetTree().Paused = false;
+            GD.Print("Load completed successfully: " + fileName);
+        }
+        catch (Exception e)
+        {
+            GD.PrintErr("Load failed: " + e.Message);
         }
 
-        GetTree().Paused = false;
         FinishLoading();
         EmitSignal(SignalName.LoadCompleted);
-    }
-
-    private System.Collections.Generic.List<Node> GetSaveableNodes(Node rootNode)
-    {
-        var list = new System.Collections.Generic.List<Node>();
-        if (rootNode is ISaveable)
-        {
-            list.Add(rootNode);
-        }
-
-        foreach (Node child in rootNode.GetChildren())
-        {
-            list.AddRange(GetSaveableNodes(child));
-        }
-
-        return list;
     }
 
     private void FinishLoading()

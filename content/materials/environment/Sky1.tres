@@ -7,3 +7,4 @@ panorama = ExtResource("1_meduk")
 
 [resource]
 sky_material = SubResource("acg_ygspi2cd")
+radiance_size = 1

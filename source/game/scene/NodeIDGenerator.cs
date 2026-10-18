@@ -18,10 +18,10 @@ public partial class NodeIDGenerator : Node
             }
         }
 
-        Node pathOwner = targetNode.GetTree()?.CurrentScene;
-        if (pathOwner != null && targetNode != pathOwner)
+        Node currentScene = targetNode.GetTree()?.CurrentScene;
+        if (currentScene != null && targetNode.IsInsideTree() && currentScene.IsAncestorOf(targetNode))
         {
-            return pathOwner.GetPathTo(targetNode).ToString();
+            return currentScene.GetPathTo(targetNode).ToString();
         }
 
         return targetNode.GetPath().ToString();

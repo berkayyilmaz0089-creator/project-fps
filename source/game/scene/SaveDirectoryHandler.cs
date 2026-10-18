@@ -77,4 +77,13 @@ public partial class SaveDirectoryHandler : Node
         }
         return SaveDir + "/" + fileName;
     }
+
+    public string GetTempPath(string fileName)
+    {
+        if (!fileName.EndsWith(".tmp"))
+        {
+            fileName += ".tmp";
+        }
+        return SaveDir + "/" + fileName;
+    }
 }

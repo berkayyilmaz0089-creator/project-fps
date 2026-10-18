@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Project FPS"
 run/main_scene="uid://dklvr5d1ntcak"
-config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 boot_splash/show_image=false
 boot_splash/use_filter=false
 config/icon="res://icon.svg"
@@ -23,6 +23,8 @@ NodeIdGenerator="*uid://dixwncd3gqr47"
 SaveAnimations="*uid://ckwkryqvqq6fv"
 SaveDirectoryHandler="*uid://d4if61d8k85yb"
 SaveManager="*uid://dlvjxklrc4tb3"
+SceneManager="*uid://bre5r6xbejofr"
+SceneTransitionHandler="*uid://b0s72c3fnxrp"
 
 [display]
 
@@ -39,6 +41,7 @@ project/assembly_name="Project FPS"
 
 save_icon=""
 loading_ui=""
+player=""
 
 [input]
 

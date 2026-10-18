@@ -79,7 +79,7 @@ public partial class PlayerLook : Node3D, ISaveable
         return new Dictionary
         {
             ["pitch"] = pitch,
-            ["body_rotation_y"] = body != null ? body.Rotation.Y : 0.0f
+            ["body_rotation_y"] = body != null ? Mathf.Wrap(body.Rotation.Y, -Mathf.Pi, Mathf.Pi) : 0.0f
         };
     }
 
@@ -98,4 +98,6 @@ public partial class PlayerLook : Node3D, ISaveable
             body.Rotation = bodyRot;
         }
     }
+
+    public void OnRestoreComplete() { }
 }

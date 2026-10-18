@@ -37,6 +37,7 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
     private float CurrentStamina;
     private bool isExhausted = false;
     private bool isCrouching = false;
+    private bool skipNextCrouchRelease = false; // restore sonrası ilk release'i yut
     private float originalCapsuleHeight;
     private float originalHeadY;
 
@@ -155,6 +156,12 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
     private void HandleCrouch(bool crouchHeld, float deltaTime)
     {
+        if (skipNextCrouchRelease)
+        {
+            skipNextCrouchRelease = false;
+            return;
+        }
+
         if (crouchHeld)
         {
             isCrouching = true;
@@ -175,6 +182,11 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
             }
         }
 
+        ApplyCrouchSmooth(deltaTime);
+    }
+
+    private void ApplyCrouchSmooth(float deltaTime)
+    {
         float targetHeight = isCrouching ? CrouchHeight : originalCapsuleHeight;
 
         if (BodyCollider?.Shape is CapsuleShape3D capsule)
@@ -189,6 +201,23 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
             Vector3 headPosition = HeadNode.Position;
             headPosition.Y = Mathf.Lerp(headPosition.Y, targetHeadY, CrouchTransitionSpeed * deltaTime);
             HeadNode.Position = headPosition;
+        }
+    }
+
+    private void ApplyCrouchInstant()
+    {
+        float targetHeight = isCrouching ? CrouchHeight : originalCapsuleHeight;
+
+        if (BodyCollider?.Shape is CapsuleShape3D capsule)
+        {
+            capsule.Height = targetHeight;
+            BodyCollider.Position = new Vector3(0.0f, targetHeight * 0.5f, 0.0f);
+        }
+
+        if (HeadNode != null)
+        {
+            float targetHeadY = isCrouching ? CrouchHeight * 0.85f : originalHeadY;
+            HeadNode.Position = new Vector3(0.0f, targetHeadY, 0.0f);
         }
     }
 
@@ -240,9 +269,9 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
             ["vel_x"] = Velocity.X,
             ["vel_y"] = Velocity.Y,
             ["vel_z"] = Velocity.Z,
+            ["is_crouching"] = isCrouching,
             ["current_stamina"] = CurrentStamina,
-            ["is_exhausted"] = isExhausted,
-            ["is_crouching"] = isCrouching
+            ["is_exhausted"] = isExhausted
         };
     }
 
@@ -266,6 +295,13 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
             );
         }
 
+        if (state.ContainsKey("is_crouching"))
+        {
+            isCrouching = state["is_crouching"].AsBool();
+            ApplyCrouchInstant();
+            skipNextCrouchRelease = true;
+        }
+
         if (state.ContainsKey("current_stamina"))
         {
             CurrentStamina = state["current_stamina"].AsSingle();
@@ -275,10 +311,13 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
         {
             isExhausted = state["is_exhausted"].AsBool();
         }
+    }
 
-        if (state.ContainsKey("is_crouching"))
+    public void OnRestoreComplete()
+    {
+        if (CeilingCheck != null)
         {
-            isCrouching = state["is_crouching"].AsBool();
+            CeilingCheck.ForceShapecastUpdate();
         }
     }
 }
