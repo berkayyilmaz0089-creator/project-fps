@@ -5,5 +5,6 @@ All third-party assets integrated into this project (including 3D assets, textur
 The detailed list of third-party assets integrated into this project are given below:
 	
 Some materials and textures - ambientCG (https://ambientcg.com/)
+Some sound effects - Pixabay (https://pixabay.com/tr) (All authors of used sound effects: Virtual_Vibes, floraphonic, freesound_community, freesound_gamestudio)
 
 NOTE: If you are a copyright holder and believe an asset has been used without appropriate attribution or in violation of its specific license, please submit an issue in this repository with details, and the material will be corrected or removed immediately.

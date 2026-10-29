@@ -9,19 +9,39 @@ public partial class PlayerLook : Node3D, ISaveable
         Action
     }
 
-    [Export] public LookMode Mode = LookMode.Mouse;
+    [Export] public LookMode Mode 
+    { 
+        get => _mode; 
+        set 
+        { 
+            _mode = value; 
+            UpdateProcessing(); 
+        } 
+    }
+    
+    private LookMode _mode = LookMode.Mouse;
+
     [Export(PropertyHint.Range, "0.01,10,0.01")] public float Sensitivity = 2.0f;
     [Export] public float MinPitch = -85.0f;
     [Export] public float MaxPitch = 85.0f;
 
-    private Node3D body;
-    private float pitch = 0.0f;
+    private Node3D _body;
+    private float _pitch = 0.0f;
+    private bool _isProcessingLook = false;
 
     public override void _Ready()
     {
-        body = GetParent<Node3D>();
+        _body = GetParent<Node3D>();
+        UpdateProcessing();
+    }
 
-        if (Mode == LookMode.Mouse)
+    private void UpdateProcessing()
+    {
+        _isProcessingLook = _mode == LookMode.Action;
+        SetProcess(_isProcessingLook);
+        SetProcessUnhandledInput(_mode == LookMode.Mouse);
+
+        if (IsInsideTree() && _mode == LookMode.Mouse)
         {
             Input.MouseMode = Input.MouseModeEnum.Captured;
         }
@@ -29,11 +49,6 @@ public partial class PlayerLook : Node3D, ISaveable
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (Mode != LookMode.Mouse)
-        {
-            return;
-        }
-
         if (@event is InputEventMouseMotion motion)
         {
             Vector2 delta = motion.Relative * Sensitivity * 0.05f;
@@ -43,10 +58,7 @@ public partial class PlayerLook : Node3D, ISaveable
 
     public override void _Process(double delta)
     {
-        if (Mode != LookMode.Action)
-        {
-            return;
-        }
+        if (!_isProcessingLook) return;
 
         float deltaTime = (float)delta;
         float yawInput = Input.GetAxis("look_left", "look_right");
@@ -62,11 +74,14 @@ public partial class PlayerLook : Node3D, ISaveable
 
     private void ApplyLook(float yawDelta, float pitchDelta)
     {
-        body.RotateY(Mathf.DegToRad(-yawDelta));
+        if (_body != null)
+        {
+            _body.RotateY(Mathf.DegToRad(-yawDelta));
+        }
 
-        pitch -= pitchDelta;
-        pitch = Mathf.Clamp(pitch, MinPitch, MaxPitch);
-        Rotation = new Vector3(Mathf.DegToRad(pitch), 0, 0);
+        _pitch -= pitchDelta;
+        _pitch = Mathf.Clamp(_pitch, MinPitch, MaxPitch);
+        Rotation = new Vector3(Mathf.DegToRad(_pitch), 0, 0);
     }
 
     public string GetSaveId()
@@ -78,8 +93,8 @@ public partial class PlayerLook : Node3D, ISaveable
     {
         return new Dictionary
         {
-            ["pitch"] = pitch,
-            ["body_rotation_y"] = body != null ? Mathf.Wrap(body.Rotation.Y, -Mathf.Pi, Mathf.Pi) : 0.0f
+            ["pitch"] = _pitch,
+            ["body_rotation_y"] = _body != null ? Mathf.Wrap(_body.Rotation.Y, -Mathf.Pi, Mathf.Pi) : 0.0f
         };
     }
 
@@ -87,15 +102,15 @@ public partial class PlayerLook : Node3D, ISaveable
     {
         if (state.ContainsKey("pitch"))
         {
-            pitch = state["pitch"].AsSingle();
-            Rotation = new Vector3(Mathf.DegToRad(pitch), 0, 0);
+            _pitch = state["pitch"].AsSingle();
+            Rotation = new Vector3(Mathf.DegToRad(_pitch), 0, 0);
         }
 
-        if (state.ContainsKey("body_rotation_y") && body != null)
+        if (state.ContainsKey("body_rotation_y") && _body != null)
         {
-            Vector3 bodyRot = body.Rotation;
+            Vector3 bodyRot = _body.Rotation;
             bodyRot.Y = state["body_rotation_y"].AsSingle();
-            body.Rotation = bodyRot;
+            _body.Rotation = bodyRot;
         }
     }
 

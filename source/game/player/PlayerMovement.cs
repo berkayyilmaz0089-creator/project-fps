@@ -34,19 +34,25 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
     [Export] public Node3D HeadNode;
     [Export] public ShapeCast3D CeilingCheck;
 
-    private float CurrentStamina;
-    private bool isExhausted = false;
-    private bool isCrouching = false;
-    private bool skipNextCrouchRelease = false; // restore sonrası ilk release'i yut
-    private float originalCapsuleHeight;
-    private float originalHeadY;
+    private float _currentStamina;
+    private bool _isExhausted = false;
+    private bool _isCrouching = false;
+    private bool _skipNextCrouchRelease = false;
+    private float _originalCapsuleHeight;
+    private float _originalHeadY;
 
-    private float coyoteTimer = 0.0f;
-    private float jumpBufferTimer = 0.0f;
+    private float _coyoteTimer = 0.0f;
+    private float _jumpBufferTimer = 0.0f;
+    
+    private bool _wasMovingLastFrame = false;
+    private Vector3 _lastVelocity = Vector3.Zero;
+    private float _lastStamina = 0.0f;
 
     public override void _Ready()
     {
-        CurrentStamina = MaxStamina;
+        _currentStamina = MaxStamina;
+        _lastStamina = _currentStamina;
+        
         FloorSnapLength = 0.2f;
         FloorMaxAngle = Mathf.DegToRad(45.0f);
 
@@ -54,14 +60,14 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
         {
             BodyCollider.Shape = (CapsuleShape3D)capsule.Duplicate();
             ((CapsuleShape3D)BodyCollider.Shape).Height = NormalHeight;
-            originalCapsuleHeight = NormalHeight;
+            _originalCapsuleHeight = NormalHeight;
             BodyCollider.Position = new Vector3(0.0f, NormalHeight * 0.5f, 0.0f);
         }
 
         if (HeadNode != null)
         {
-            originalHeadY = NormalHeight * 0.85f;
-            HeadNode.Position = new Vector3(0.0f, originalHeadY, 0.0f);
+            _originalHeadY = NormalHeight * 0.85f;
+            HeadNode.Position = new Vector3(0.0f, _originalHeadY, 0.0f);
         }
     }
 
@@ -75,31 +81,53 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
         UpdateJumpTimers(deltaTime);
         ApplyGravity(deltaTime);
-        HandleMovement(inputDirection, sprintHeld, deltaTime);
+        
+        bool isMovingInput = inputDirection != Vector2.Zero;
+        bool needsMovementUpdate = isMovingInput || !IsOnFloor() || _wasMovingLastFrame;
+
+        if (needsMovementUpdate)
+        {
+            HandleMovement(inputDirection, sprintHeld, deltaTime);
+        }
+        else
+        {
+            Vector3 vel = Velocity;
+            if (Mathf.Abs(vel.X) > 0.01f || Mathf.Abs(vel.Z) > 0.01f)
+            {
+                vel.X = Mathf.MoveToward(vel.X, 0, Deceleration * deltaTime);
+                vel.Z = Mathf.MoveToward(vel.Z, 0, Deceleration * deltaTime);
+                Velocity = vel;
+            }
+        }
+
         HandleJump();
         HandleCrouch(crouchHeld, deltaTime);
         HandleStamina(sprintHeld, inputDirection, deltaTime);
+        
         MoveAndSlide();
+        
+        _wasMovingLastFrame = isMovingInput;
+        _lastVelocity = Velocity;
     }
 
     private void UpdateJumpTimers(float deltaTime)
     {
         if (IsOnFloor())
         {
-            coyoteTimer = CoyoteTime;
+            _coyoteTimer = CoyoteTime;
         }
         else
         {
-            coyoteTimer -= deltaTime;
+            _coyoteTimer -= deltaTime;
         }
 
         if (Input.IsActionJustPressed("jump"))
         {
-            jumpBufferTimer = JumpBufferTime;
+            _jumpBufferTimer = JumpBufferTime;
         }
-        else
+        else if (_jumpBufferTimer > 0)
         {
-            jumpBufferTimer -= deltaTime;
+            _jumpBufferTimer -= deltaTime;
         }
     }
 
@@ -118,11 +146,11 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
         Vector3 moveDirection = (GlobalTransform.Basis * new Vector3(inputDirection.X, 0.0f, -inputDirection.Y)).Normalized();
 
         bool isMovingForward = inputDirection.Y > 0.1f;
-        bool canSprint = sprintHeld && !isExhausted && !isCrouching && isMovingForward;
+        bool canSprint = sprintHeld && !_isExhausted && !_isCrouching && isMovingForward;
 
         float targetSpeed = WalkSpeed;
 
-        if (isCrouching)
+        if (_isCrouching)
         {
             targetSpeed = CrouchSpeed;
         }
@@ -143,42 +171,39 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
     private void HandleJump()
     {
-        if (jumpBufferTimer > 0.0f && coyoteTimer > 0.0f && !isCrouching)
+        if (_jumpBufferTimer > 0.0f && _coyoteTimer > 0.0f && !_isCrouching)
         {
             Vector3 velocity = Velocity;
             velocity.Y = JumpForce;
             Velocity = velocity;
 
-            jumpBufferTimer = 0.0f;
-            coyoteTimer = 0.0f;
+            _jumpBufferTimer = 0.0f;
+            _coyoteTimer = 0.0f;
         }
     }
 
     private void HandleCrouch(bool crouchHeld, float deltaTime)
     {
-        if (skipNextCrouchRelease)
+        if (_skipNextCrouchRelease)
         {
-            skipNextCrouchRelease = false;
+            _skipNextCrouchRelease = false;
             return;
         }
 
         if (crouchHeld)
         {
-            isCrouching = true;
+            _isCrouching = true;
         }
-        else if (isCrouching)
+        else if (_isCrouching)
         {
-            bool hasCeiling = false;
-
             if (CeilingCheck != null)
             {
                 CeilingCheck.ForceShapecastUpdate();
-                hasCeiling = CeilingCheck.IsColliding();
+                _isCrouching = CeilingCheck.IsColliding();
             }
-
-            if (!hasCeiling)
+            else
             {
-                isCrouching = false;
+                _isCrouching = false;
             }
         }
 
@@ -187,26 +212,32 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
     private void ApplyCrouchSmooth(float deltaTime)
     {
-        float targetHeight = isCrouching ? CrouchHeight : originalCapsuleHeight;
+        float targetHeight = _isCrouching ? CrouchHeight : _originalCapsuleHeight;
 
         if (BodyCollider?.Shape is CapsuleShape3D capsule)
         {
-            capsule.Height = Mathf.Lerp(capsule.Height, targetHeight, CrouchTransitionSpeed * deltaTime);
-            BodyCollider.Position = new Vector3(0.0f, capsule.Height * 0.5f, 0.0f);
+            if (Mathf.Abs(capsule.Height - targetHeight) > 0.01f)
+            {
+                capsule.Height = Mathf.Lerp(capsule.Height, targetHeight, CrouchTransitionSpeed * deltaTime);
+                BodyCollider.Position = new Vector3(0.0f, capsule.Height * 0.5f, 0.0f);
+            }
         }
 
         if (HeadNode != null)
         {
-            float targetHeadY = isCrouching ? CrouchHeight * 0.85f : originalHeadY;
-            Vector3 headPosition = HeadNode.Position;
-            headPosition.Y = Mathf.Lerp(headPosition.Y, targetHeadY, CrouchTransitionSpeed * deltaTime);
-            HeadNode.Position = headPosition;
+            float targetHeadY = _isCrouching ? CrouchHeight * 0.85f : _originalHeadY;
+            if (Mathf.Abs(HeadNode.Position.Y - targetHeadY) > 0.01f)
+            {
+                Vector3 headPosition = HeadNode.Position;
+                headPosition.Y = Mathf.Lerp(headPosition.Y, targetHeadY, CrouchTransitionSpeed * deltaTime);
+                HeadNode.Position = headPosition;
+            }
         }
     }
 
     private void ApplyCrouchInstant()
     {
-        float targetHeight = isCrouching ? CrouchHeight : originalCapsuleHeight;
+        float targetHeight = _isCrouching ? CrouchHeight : _originalCapsuleHeight;
 
         if (BodyCollider?.Shape is CapsuleShape3D capsule)
         {
@@ -216,7 +247,7 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
         if (HeadNode != null)
         {
-            float targetHeadY = isCrouching ? CrouchHeight * 0.85f : originalHeadY;
+            float targetHeadY = _isCrouching ? CrouchHeight * 0.85f : _originalHeadY;
             HeadNode.Position = new Vector3(0.0f, targetHeadY, 0.0f);
         }
     }
@@ -224,33 +255,35 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
     private void HandleStamina(bool sprintHeld, Vector2 inputDirection, float deltaTime)
     {
         bool isMovingForward = inputDirection.Y > 0.1f;
+        bool staminaChanged = false;
 
-        if (sprintHeld && isMovingForward && !isCrouching && !isExhausted)
+        if (sprintHeld && isMovingForward && !_isCrouching && !_isExhausted)
         {
-            CurrentStamina -= DrainRate * deltaTime;
+            _currentStamina -= DrainRate * deltaTime;
 
-            if (CurrentStamina <= 0.0f)
+            if (_currentStamina <= 0.0f)
             {
-                CurrentStamina = 0.0f;
-                isExhausted = true;
+                _currentStamina = 0.0f;
+                _isExhausted = true;
             }
-
-            EmitSignal(SignalName.StaminaChanged, CurrentStamina, MaxStamina);
+            staminaChanged = true;
         }
-        else
+        else if (!sprintHeld && _currentStamina < MaxStamina)
         {
-            if (!sprintHeld && CurrentStamina < MaxStamina)
+            _currentStamina += RegenRate * deltaTime;
+
+            if (_currentStamina >= MaxStamina)
             {
-                CurrentStamina += RegenRate * deltaTime;
-
-                if (CurrentStamina >= MaxStamina)
-                {
-                    CurrentStamina = MaxStamina;
-                    isExhausted = false;
-                }
-
-                EmitSignal(SignalName.StaminaChanged, CurrentStamina, MaxStamina);
+                _currentStamina = MaxStamina;
+                _isExhausted = false;
             }
+            staminaChanged = true;
+        }
+
+        if (staminaChanged && !Mathf.IsEqualApprox(_currentStamina, _lastStamina))
+        {
+            EmitSignal(SignalName.StaminaChanged, _currentStamina, MaxStamina);
+            _lastStamina = _currentStamina;
         }
     }
 
@@ -269,9 +302,9 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
             ["vel_x"] = Velocity.X,
             ["vel_y"] = Velocity.Y,
             ["vel_z"] = Velocity.Z,
-            ["is_crouching"] = isCrouching,
-            ["current_stamina"] = CurrentStamina,
-            ["is_exhausted"] = isExhausted
+            ["is_crouching"] = _isCrouching,
+            ["current_stamina"] = _currentStamina,
+            ["is_exhausted"] = _isExhausted
         };
     }
 
@@ -297,19 +330,20 @@ public partial class PlayerMovement : CharacterBody3D, ISaveable
 
         if (state.ContainsKey("is_crouching"))
         {
-            isCrouching = state["is_crouching"].AsBool();
+            _isCrouching = state["is_crouching"].AsBool();
             ApplyCrouchInstant();
-            skipNextCrouchRelease = true;
+            _skipNextCrouchRelease = true;
         }
 
         if (state.ContainsKey("current_stamina"))
         {
-            CurrentStamina = state["current_stamina"].AsSingle();
+            _currentStamina = state["current_stamina"].AsSingle();
+            _lastStamina = _currentStamina;
         }
 
         if (state.ContainsKey("is_exhausted"))
         {
-            isExhausted = state["is_exhausted"].AsBool();
+            _isExhausted = state["is_exhausted"].AsBool();
         }
     }
 

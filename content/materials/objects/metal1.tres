@@ -1,0 +1,23 @@
+[gd_resource type="StandardMaterial3D" format=3 uid="uid://bcoswxlrb8so7"]
+
+[ext_resource type="Texture2D" uid="uid://c0a5j582ydxyj" path="res://content/textures/objects/metal1/Metal049A_1K-PNG_Displacement.png" id="1_1o2df"]
+[ext_resource type="Texture2D" uid="uid://bql4nlkc8fcxb" path="res://content/textures/objects/metal1/Metal049A_1K-PNG_Metalness.png" id="2_g836g"]
+[ext_resource type="Texture2D" uid="uid://4plom2nl52lr" path="res://content/textures/objects/metal1/Metal049A_1K-PNG_NormalGL.png" id="3_fsvwh"]
+[ext_resource type="Texture2D" uid="uid://m6ok77nd0krl" path="res://content/textures/objects/metal1/Metal049A_1K-PNG_Roughness.png" id="4_3qfbs"]
+
+[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_eeh6m"]
+load_path = "res://.godot/imported/Metal049A_1K-PNG_Color.png-3f428afd2337c27de1b8cb704b92ef2b.s3tc.ctex"
+
+[resource]
+albedo_color = Color(0.25, 0.25, 0.25, 1)
+albedo_texture = SubResource("CompressedTexture2D_eeh6m")
+metallic = 1.0
+metallic_texture = ExtResource("2_g836g")
+metallic_texture_channel = 4
+roughness_texture = ExtResource("4_3qfbs")
+roughness_texture_channel = 4
+normal_enabled = true
+normal_texture = ExtResource("3_fsvwh")
+heightmap_enabled = true
+heightmap_scale = 1.0
+heightmap_texture = ExtResource("1_1o2df")

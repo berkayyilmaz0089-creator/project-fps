@@ -2,6 +2,7 @@ using Godot;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+// I have been working on this for a few days, I thought this would be easy dammit.
 public partial class SceneManager : Node
 {
     [Signal] public delegate void TransitionStartedEventHandler(string targetScene);
@@ -12,25 +13,25 @@ public partial class SceneManager : Node
     public string CurrentScenePath { get; private set; } = "";
     public bool IsTransitioning { get; private set; } = false;
 
-    private readonly System.Collections.Generic.Dictionary<string, string> objectLocations = new();
-    private readonly System.Collections.Generic.Dictionary<string, Godot.Collections.Dictionary> sceneStates = new();
-    private readonly System.Collections.Generic.Dictionary<string, Godot.Collections.Dictionary> pendingTransferStates = new();
-    private readonly System.Collections.Generic.Dictionary<string, Vector3> pendingOffsets = new();
+    private readonly Dictionary<string, string> _objectLocations = new();
+    private readonly Dictionary<string, Godot.Collections.Dictionary> _sceneStates = new();
+    private readonly Dictionary<string, Godot.Collections.Dictionary> _pendingTransferStates = new();
+    private readonly Dictionary<string, Vector3> _pendingOffsets = new();
 
-    private readonly List<Node> cachedSaveables = new();
-    private readonly System.Collections.Generic.Dictionary<string, SceneTransitionPoint> cachedPoints = new();
+    private readonly List<Node> _cachedSaveables = new();
+    private readonly Dictionary<string, SceneTransitionPoint> _cachedPoints = new();
 
-    private string pendingTargetScene = "";
-    private string pendingTargetPointId = "";
+    private string _pendingTargetScene = "";
+    private string _pendingTargetPointId = "";
 
-    private SceneTransitionHandler transitionHandler;
+    private SceneTransitionHandler _transitionHandler;
 
     public override void _Ready()
     {
         Instance = this;
 
-        transitionHandler = new SceneTransitionHandler();
-        AddChild(transitionHandler);
+        _transitionHandler = new SceneTransitionHandler();
+        AddChild(_transitionHandler);
 
         CallDeferred(nameof(TryRegisterInitialScene));
     }
@@ -54,6 +55,7 @@ public partial class SceneManager : Node
         {
             return;
         }
+
         if (string.IsNullOrEmpty(trigger.TargetScenePath))
         {
             return;
@@ -64,8 +66,8 @@ public partial class SceneManager : Node
 
         CaptureCurrentScene();
 
-        pendingTransferStates.Clear();
-        pendingOffsets.Clear();
+        _pendingTransferStates.Clear();
+        _pendingOffsets.Clear();
 
         if (trigger.TransferVolume != null)
         {
@@ -80,24 +82,24 @@ public partial class SceneManager : Node
                         string id = saveable.GetSaveId();
                         if (!string.IsNullOrEmpty(id))
                         {
-                            pendingTransferStates[id] = saveable.CaptureState();
-                            pendingOffsets[id] = offset;
-                            objectLocations[id] = trigger.TargetScenePath;
+                            _pendingTransferStates[id] = saveable.CaptureState();
+                            _pendingOffsets[id] = offset;
+                            _objectLocations[id] = trigger.TargetScenePath;
                         }
                     }
                 }
             }
         }
 
-        pendingTargetScene = trigger.TargetScenePath;
-        pendingTargetPointId = trigger.TargetPointId;
+        _pendingTargetScene = trigger.TargetScenePath;
+        _pendingTargetPointId = trigger.TargetPointId;
 
-        await transitionHandler.ExecuteTransition(pendingTargetScene, OnSceneReady);
+        await _transitionHandler.ExecuteTransition(_pendingTargetScene, OnSceneReady);
 
-        pendingTransferStates.Clear();
-        pendingOffsets.Clear();
-        pendingTargetScene = "";
-        pendingTargetPointId = "";
+        _pendingTransferStates.Clear();
+        _pendingOffsets.Clear();
+        _pendingTargetScene = "";
+        _pendingTargetPointId = "";
 
         IsTransitioning = false;
         EmitSignal(SignalName.TransitionCompleted, CurrentScenePath);
@@ -111,24 +113,32 @@ public partial class SceneManager : Node
         }
 
         IsTransitioning = true;
-        await transitionHandler.ExecuteTransition(targetScenePath, OnSceneReadyFromSave);
+        await _transitionHandler.ExecuteTransition(targetScenePath, OnSceneReadyFromSave);
         IsTransitioning = false;
     }
 
     private void OnSceneReady()
     {
         Node newScene = GetTree().CurrentScene;
-        CurrentScenePath = pendingTargetScene;
+        CurrentScenePath = _pendingTargetScene;
 
+        CacheSceneNodes(newScene);
         ApplySceneState(newScene);
-        ApplyTransferStates();
-        PlaceAtTargetPoint(pendingTargetPointId);
+        
+        CallDeferred(nameof(ApplyTransferAndPlace));
     }
 
     private void OnSceneReadyFromSave()
     {
         Node newScene = GetTree().CurrentScene;
+        CacheSceneNodes(newScene);
         ApplySceneState(newScene);
+    }
+
+    private void ApplyTransferAndPlace()
+    {
+        ApplyTransferStates();
+        PlaceAtTargetPoint(_pendingTargetPointId);
     }
 
     public void CaptureCurrentScene()
@@ -139,14 +149,14 @@ public partial class SceneManager : Node
             return;
         }
 
-        if (cachedSaveables.Count == 0)
+        if (_cachedSaveables.Count == 0)
         {
             CacheSceneNodes(scene);
         }
 
         var states = new Godot.Collections.Dictionary();
 
-        foreach (Node node in cachedSaveables)
+        foreach (Node node in _cachedSaveables)
         {
             if (node is ISaveable saveable)
             {
@@ -158,7 +168,7 @@ public partial class SceneManager : Node
             }
         }
 
-        sceneStates[CurrentScenePath] = states;
+        _sceneStates[CurrentScenePath] = states;
     }
 
     public void ApplySceneState(Node sceneRoot)
@@ -174,11 +184,9 @@ public partial class SceneManager : Node
             return;
         }
 
-        CacheSceneNodes(sceneRoot);
-
-        if (sceneStates.TryGetValue(scenePath, out var states))
+        if (_sceneStates.TryGetValue(scenePath, out var states))
         {
-            foreach (Node node in cachedSaveables)
+            foreach (Node node in _cachedSaveables)
             {
                 if (node is ISaveable saveable)
                 {
@@ -191,14 +199,14 @@ public partial class SceneManager : Node
             }
         }
 
-        foreach (Node node in cachedSaveables)
+        foreach (Node node in _cachedSaveables)
         {
             if (node is ISaveable saveable)
             {
                 string id = saveable.GetSaveId();
                 if (!string.IsNullOrEmpty(id))
                 {
-                    objectLocations[id] = scenePath;
+                    _objectLocations[id] = scenePath;
                 }
                 saveable.OnRestoreComplete();
             }
@@ -207,17 +215,17 @@ public partial class SceneManager : Node
 
     private void ApplyTransferStates()
     {
-        if (pendingTransferStates.Count == 0)
+        if (_pendingTransferStates.Count == 0)
         {
             return;
         }
 
-        foreach (Node node in cachedSaveables)
+        foreach (Node node in _cachedSaveables)
         {
             if (node is ISaveable saveable)
             {
                 string id = saveable.GetSaveId();
-                if (!string.IsNullOrEmpty(id) && pendingTransferStates.TryGetValue(id, out var state))
+                if (!string.IsNullOrEmpty(id) && _pendingTransferStates.TryGetValue(id, out var state))
                 {
                     saveable.RestoreState(state);
                     saveable.OnRestoreComplete();
@@ -233,27 +241,25 @@ public partial class SceneManager : Node
             return;
         }
 
-        if (!cachedPoints.TryGetValue(pointId, out var point))
+        if (!_cachedPoints.TryGetValue(pointId, out var point))
         {
             GD.PrintErr($"SceneTransitionPoint not found: {pointId}");
             return;
         }
 
-        foreach (Node node in cachedSaveables)
+        foreach (Node node in _cachedSaveables)
         {
             if (node is ISaveable saveable && node is Node3D node3d)
             {
                 string id = saveable.GetSaveId();
-                if (!string.IsNullOrEmpty(id) && pendingTransferStates.ContainsKey(id))
+                if (!string.IsNullOrEmpty(id) && _pendingTransferStates.ContainsKey(id))
                 {
-                    Vector3 offset = pendingOffsets.ContainsKey(id) ? pendingOffsets[id] : Vector3.Zero;
+                    Vector3 offset = _pendingOffsets.ContainsKey(id) ? _pendingOffsets[id] : Vector3.Zero;
                     node3d.GlobalPosition = point.GlobalPosition + offset;
 
                     if (node3d is CharacterBody3D charBody)
                     {
-                        Vector3 vel = charBody.Velocity;
-                        vel.Y = 0;
-                        charBody.Velocity = vel;
+                        charBody.Velocity = Vector3.Zero;
                     }
                 }
             }
@@ -262,8 +268,8 @@ public partial class SceneManager : Node
 
     private void CacheSceneNodes(Node sceneRoot)
     {
-        cachedSaveables.Clear();
-        cachedPoints.Clear();
+        _cachedSaveables.Clear();
+        _cachedPoints.Clear();
         CollectSceneNodes(sceneRoot);
     }
 
@@ -271,12 +277,12 @@ public partial class SceneManager : Node
     {
         if (node is ISaveable)
         {
-            cachedSaveables.Add(node);
+            _cachedSaveables.Add(node);
         }
 
         if (node is SceneTransitionPoint p && !string.IsNullOrEmpty(p.PointId))
         {
-            cachedPoints[p.PointId] = p;
+            _cachedPoints[p.PointId] = p;
         }
 
         foreach (Node child in node.GetChildren())
@@ -290,11 +296,12 @@ public partial class SceneManager : Node
         var locations = new Godot.Collections.Dictionary();
         var states = new Godot.Collections.Dictionary();
 
-        foreach (var kvp in objectLocations)
+        foreach (var kvp in _objectLocations)
         {
             locations[kvp.Key] = kvp.Value;
         }
-        foreach (var kvp in sceneStates)
+        
+        foreach (var kvp in _sceneStates)
         {
             states[kvp.Key] = kvp.Value;
         }
@@ -309,15 +316,15 @@ public partial class SceneManager : Node
 
     public void LoadData(Godot.Collections.Dictionary data)
     {
-        objectLocations.Clear();
-        sceneStates.Clear();
+        _objectLocations.Clear();
+        _sceneStates.Clear();
 
         if (data.ContainsKey("object_locations"))
         {
             var locations = data["object_locations"].AsGodotDictionary();
             foreach (var key in locations.Keys)
             {
-                objectLocations[key.AsString()] = locations[key].AsString();
+                _objectLocations[key.AsString()] = locations[key].AsString();
             }
         }
 
@@ -326,7 +333,7 @@ public partial class SceneManager : Node
             var states = data["scene_states"].AsGodotDictionary();
             foreach (var key in states.Keys)
             {
-                sceneStates[key.AsString()] = states[key].AsGodotDictionary();
+                _sceneStates[key.AsString()] = states[key].AsGodotDictionary();
             }
         }
 
@@ -338,7 +345,7 @@ public partial class SceneManager : Node
 
     public string GetObjectScene(string saveId)
     {
-        if (objectLocations.TryGetValue(saveId, out string s))
+        if (_objectLocations.TryGetValue(saveId, out string s))
         {
             return s;
         }
@@ -352,10 +359,12 @@ public partial class SceneManager : Node
         {
             list.Add(root);
         }
+        
         foreach (Node child in root.GetChildren())
         {
             list.AddRange(GetSaveableNodes(child));
         }
+        
         return list;
     }
 }

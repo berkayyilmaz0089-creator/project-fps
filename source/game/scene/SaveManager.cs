@@ -12,24 +12,24 @@ public partial class SaveManager : Node
     private const string SecretKey = "project_fps_1234"; // NOT A REAL KEY, ONLY FOR TESTING
     private const int SaveVersion = 1;
 
-    private SaveDirectoryHandler directoryHandler;
-    private SaveAnimations saveAnimations;
+    private SaveDirectoryHandler _directoryHandler;
+    private SaveAnimations _saveAnimations;
 
-    private bool isBusy = false;
+    private bool _isBusy = false;
 
     public override void _Ready()
     {
-        directoryHandler = new SaveDirectoryHandler();
-        saveAnimations = new SaveAnimations();
+        _directoryHandler = new SaveDirectoryHandler();
+        _saveAnimations = new SaveAnimations();
 
-        AddChild(saveAnimations);
+        AddChild(_saveAnimations);
 
-        directoryHandler.EnsureDirectoryExists();
+        _directoryHandler.EnsureDirectoryExists();
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (isBusy)
+        if (_isBusy)
         {
             return;
         }
@@ -46,7 +46,7 @@ public partial class SaveManager : Node
 
     public async Task QuickSave()
     {
-        if (isBusy)
+        if (_isBusy)
         {
             return;
         }
@@ -57,7 +57,7 @@ public partial class SaveManager : Node
 
     public async Task ManualSave(string customName = "")
     {
-        if (isBusy)
+        if (_isBusy)
         {
             return;
         }
@@ -69,12 +69,12 @@ public partial class SaveManager : Node
 
     public async Task QuickLoad()
     {
-        if (isBusy)
+        if (_isBusy)
         {
             return;
         }
 
-        string latest = directoryHandler.GetLatestSaveFile();
+        string latest = _directoryHandler.GetLatestSaveFile();
         if (!string.IsNullOrEmpty(latest))
         {
             await LoadGame(latest);
@@ -83,14 +83,16 @@ public partial class SaveManager : Node
 
     public async Task SaveGame(string saveName)
     {
-        isBusy = true;
+        _isBusy = true;
         EmitSignal(SignalName.SaveStarted);
-        await saveAnimations.ShowSaveIcon();
+        
+        _saveAnimations.CacheUIReferences();
+        await _saveAnimations.ShowSaveIcon();
 
-        directoryHandler.ManageSaves();
+        _directoryHandler.ManageSaves();
 
-        string filePath = directoryHandler.GetSavePath(saveName);
-        string tempPath = directoryHandler.GetTempPath(saveName);
+        string filePath = _directoryHandler.GetSavePath(saveName);
+        string tempPath = _directoryHandler.GetTempPath(saveName);
 
         try
         {
@@ -141,20 +143,19 @@ public partial class SaveManager : Node
             }
         }
 
-        await ToSignal(GetTree().CreateTimer(0.8f), SceneTreeTimer.SignalName.Timeout);
-        await saveAnimations.HideSaveIcon();
+        await ToSignal(GetTree().CreateTimer(0.1f), SceneTreeTimer.SignalName.Timeout);
+        await _saveAnimations.HideSaveIcon();
 
-        isBusy = false;
+        _isBusy = false;
         EmitSignal(SignalName.SaveCompleted);
     }
 
     public async Task LoadGame(string fileName)
     {
-        isBusy = true;
-        saveAnimations.ShowLoadingUI(true);
+        _isBusy = true;
         EmitSignal(SignalName.LoadStarted);
 
-        string filePath = directoryHandler.GetSavePath(fileName);
+        string filePath = _directoryHandler.GetSavePath(fileName);
 
         if (!FileAccess.FileExists(filePath))
         {
@@ -165,6 +166,16 @@ public partial class SaveManager : Node
 
         try
         {
+            _saveAnimations.ShowLoadingUI(true);
+            
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            GetTree().Paused = true;
+            
+            await _saveAnimations.TakeFreezeLayer();
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
             using var file = FileAccess.OpenEncryptedWithPass(filePath, FileAccess.ModeFlags.Read, SecretKey);
             if (file == null)
             {
@@ -194,7 +205,6 @@ public partial class SaveManager : Node
                 }
             }
 
-            GetTree().Paused = false;
             GD.Print("Load completed successfully: " + fileName);
         }
         catch (Exception e)
@@ -202,13 +212,18 @@ public partial class SaveManager : Node
             GD.PrintErr("Load failed: " + e.Message);
         }
 
+        GetTree().Paused = false;
+
+        await ToSignal(GetTree().CreateTimer(0.1f, processAlways: true), SceneTreeTimer.SignalName.Timeout);
+        _saveAnimations.ShowLoadingUI(false);
+        _saveAnimations.DeleteFreezeLayer();
+
         FinishLoading();
         EmitSignal(SignalName.LoadCompleted);
     }
 
     private void FinishLoading()
     {
-        saveAnimations.ShowLoadingUI(false);
-        isBusy = false;
+        _isBusy = false;
     }
 }
